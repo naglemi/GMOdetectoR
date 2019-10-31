@@ -108,8 +108,16 @@ normalize_image <- function(image_spectrum_table, chroma_table, verbose=FALSE){
   chroma_table <- chroma_table[chroma_table$rows <= max(image_spectrum_table$rows),]
   #image_spectrum_table[cols < max(chroma_table$cols)]
   
+  # Added re-scaling to mean of original to keep denoise thresholds working as they do without normalization in 
+  # v0.19
+  mean_image_spectrum_table_r_before_normalizing <- mean(image_spectrum_table$r)
+  mean_image_spectrum_table_b_before_normalizing <- mean(image_spectrum_table$b)
+  
   image_spectrum_table$r <- image_spectrum_table$r / chroma_table$r
   image_spectrum_table$g <- image_spectrum_table$g / chroma_table$g
+  
+  image_spectrum_table$r <- image_spectrum_table$r * mean_image_spectrum_table_r_before_normalizing
+  image_spectrum_table$g <- image_spectrum_table$g * mean_image_spectrum_table_g_before_normalizing
   
   return(image_spectrum_table)
 }
@@ -161,6 +169,8 @@ assign_ID_index_from_row_column_on_tray <- function(data_to_parse, components_li
                         0,1,2,3,4,5,6,
                         0,1,2,3,4,5,6),
                       c(1:21))
+  dictionary <- as.data.table(dictionary)
+  colnames(dictionary) <- c("row", "column", "ID")
   # Get the ID of position in tray in according to row and column
   dictionary$row_column <- paste0(dictionary$row, "_", dictionary$column)
   dictionary[,1:2] <- NULL
@@ -172,10 +182,26 @@ assign_ID_index_from_row_column_on_tray <- function(data_to_parse, components_li
     return(data_merged)
   }
   if(mode=="filename"){
-    row <- str_split_fixed(basename(file_path_sans_ext(filename)), "_", 9)[8]
-    col <- str_split_fixed(basename(file_path_sans_ext(filename)), "_", 9)[9]
+    
+    # Patch added in v0.19 for compatibility regardless of whether "_cyan" is at end of filename
+    if(grepl("cyan", filename)==1){
+      ndelimiters=9
+    }else{
+      ndelimiters=8
+    }
+    
+    
+    row <- str_split_fixed(basename(file_path_sans_ext(filename)), "_", 9)[ndelimiters-1]
+    # Changed in v0.19 along with patch above
+    col <- str_split_fixed(basename(file_path_sans_ext(filename)), "_", ndelimiters)[ndelimiters]
     row_col <- paste0(row, "_", col)
     ID <- dictionary[which(dictionary$row_column == row_col),]$ID
+    # Debugging lines added in v0.19
+    print(paste0("This row is ", row))
+    print(paste0("This col is ", col))
+    print(paste0("This row_col is ", row_col))
+    print(paste0("This filename (stripped) is ", basename(file_path_sans_ext(filename))))
+    print(paste0("This ID about to be returned from assign_ID_index_from_roW_column_on_tray is ", ID))
     return(ID)
   }
 }
@@ -271,8 +297,11 @@ extract_plot_grid_item <- function(image_spectrum_table,
   # no cropping in this function any more
   # Need to uncomment in v0.19 for PhenotypeAssistant
   # Uncommenting didn't fix object'FullID' not found error.
-  FullID <- paste0(parse_trayplateID(filename), "_exp", grid_item)
-  
+  # I AM CURRENTLY DEFINING THIS BOTH IN FUNCTIONS extract_plot_grid_item and crop_and_plot
+  # IF DEFINED IN THE FORMER, ONLY APPEARS FOR WHOLE PLATE
+  FullID <<- paste0(parse_trayplateID(filename), "_exp", grid_item)
+  # Debugging statement for v0.19
+  print(paste0("Full ID is ", FullID))
   
   if(FC==TRUE){
     image_spectrum_table$color <- rgb(red= image_spectrum_table$r,
@@ -320,6 +349,14 @@ crop_and_plot <- function(mode="whole_plate", grid_item, image_spectrum_table = 
     }
     
     
+
+    
+    # New debugging statement in v0.19 because of error Error in +ggtitle(FullID) : invalid argument to unary operator
+    # Is this variable defined within the proper scope?
+    # Note: I think that error only happened because I had the + before ggtitle on the same line
+    # instead of the line before
+    print(paste0("Full ID right before plotting is ", FullID))
+    
     # This was commented out for some reason in v0.18 but I am uncommenting in v0.19 because of
     # error when using backend for PhenotypeAssistant
     # Error in crop_and_plot(mode = what_to_plot, input_toggle = TRUE, image_spectrum_table = image_spectrum_table_colored,  : 
@@ -329,8 +366,8 @@ crop_and_plot <- function(mode="whole_plate", grid_item, image_spectrum_table = 
       theme(axis.ticks = element_blank(), axis.title = element_blank(),
             panel.background = element_blank(), axis.text = element_blank(),
             panel.border = element_blank(), panel.grid.major = element_blank(),
-            panel.grid.minor = element_blank(), axis.line = element_blank())
-    +ggtitle(FullID)
+            panel.grid.minor = element_blank(), axis.line = element_blank()) +
+      ggtitle(FullID)
     
     if (image_type=="CLS"){
       print("Total DsRed in final image about to be plotted: ")
@@ -378,6 +415,8 @@ crop_and_plot <- function(mode="whole_plate", grid_item, image_spectrum_table = 
     
   }
   if(mode=="single_explant" | mode=="both"){
+    # Adding this in v0.19, not sure why it needs to be here suddenly
+    FullID <<- paste0(parse_trayplateID(filename), "_exp", grid_item)
     y_newsize <- y_crop_rightside - y_crop_leftside
     x_newsize <- x_crop_leftside - x_crop_rightside
     
@@ -412,13 +451,16 @@ crop_and_plot <- function(mode="whole_plate", grid_item, image_spectrum_table = 
                                                           pass_Chl_threshold_from_input = first_pass_Chl_threshold)
     }
     
+    print(paste0("Full ID right before plotting is ", FullID))
+    
     q <- ggplot(data=image_spectrum_table_single_cropped, aes(x=cols, y=rows, fill=color)) +
       coord_equal() + geom_tile() + scale_fill_identity() +
       theme(axis.ticks = element_blank(), axis.title = element_blank(),
             panel.background = element_blank(), axis.text = element_blank(),
             panel.border = element_blank(), panel.grid.major = element_blank(),
-            panel.grid.minor = element_blank(), axis.line = element_blank())
-    #+ggtitle(FullID)
+            panel.grid.minor = element_blank(), axis.line = element_blank())+
+      # Uncommented in v0.19
+    ggtitle(FullID)
     
     if (image_type=="CLS"){
       print("Total DsRed in final image about to be plotted: ")
