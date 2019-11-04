@@ -9,9 +9,9 @@ folder_path_all_images <- "G:/Transformation/T12_Different_CIMs_TAG_TAH_TAI/TAI/
 
 chroma_standard_path <- "G:/Transformation/T12_Different_CIMs_TAG_TAH_TAI/TAI/wk3/chroma_I0.85_F2.2_L100_092210_0_0_0.raw"
 
-chroma_in <- load_image(image_path = chroma_standard_path)
+chroma_in <- reduce_image(load_image(image_path = chroma_standard_path))
 
-destination_path <- paste0(getwd(), "/", str_split_fixed(folder_path_all_images, "/", 2)[,2])
+destination_path <- paste0("G:/PhenotypeAssistant/", str_split_fixed(folder_path_all_images, "/", 2)[,2])
 if(!dir.exists(destination_path)){
   dir.create(destination_path,
              recursive = TRUE)
@@ -19,7 +19,7 @@ if(!dir.exists(destination_path)){
 
 setwd(destination_path)
 
-phenotype_assistant <- function(image_path, chroma_standard_preloaded, grid_type=20){
+phenotype_assistant <- function(image_path, chroma_standard_preloaded, grid_type=20, Chl_cap, FP_cap, denoise_thr_Chl, denoise_thr_FP){
   
   img_in_backend <<- load_image(image_path = image_path)
   
@@ -30,17 +30,17 @@ phenotype_assistant <- function(image_path, chroma_standard_preloaded, grid_type
   grid_item <<- " Full Plate"
   
   image_spectrum_table_colored <- extract_plot_grid_item(image_spectrum_table = reduced_img_in_backend,
-                                                         chroma_table = chroma_table,
+                                                         chroma_table = chroma_standard_preloaded,
                                                          FC = TRUE,
                                                          cap = TRUE,
-                                                         max_intensity_FP = 300,
-                                                         max_intensity_Chl = 300,
+                                                         max_intensity_FP = FP_cap,
+                                                         max_intensity_Chl = Chl_cap,
                                                          scale = TRUE,
-                                                         normalize = FALSE,
+                                                         normalize = TRUE,
                                                          to_denoise = TRUE,
                                                          standardize_rgb = TRUE,
-                                                         denoise_threshold_FP = 100,
-                                                         denoise_threshold_Chl = 100,
+                                                         denoise_threshold_FP = denoise_thr_FP,
+                                                         denoise_threshold_Chl = denoise_thr_Chl,
                                                          dim_chlorophyll = as.numeric(1),
                                                          FP = input$FP)
   
@@ -68,17 +68,21 @@ phenotype_assistant <- function(image_path, chroma_standard_preloaded, grid_type
   
   if(grid_type==20){
     for(i in 1:20){
+      dirname <- paste0(str_split_fixed(FullID, "_", 3)[,1], "_plate", str_split_fixed(FullID, "_", 3)[,2])
+      if(!dir.exists(dirname)){
+        dir.create(dirname)
+      }
       this_explant_plot <- crop_and_plot(mode=what_to_plot,
                                          input_toggle=TRUE,
                                          # The below line is currently the same for any type of plot
                                          image_spectrum_table = image_spectrum_table_colored,
                                          grid_item = i,
                                          image_type = "hyperspectral",
-                                         first_pass_FP_threshold = 100,
-                                         first_pass_Chl_threshold = 100)
+                                         first_pass_FP_threshold = denoise_thr_FP,
+                                         first_pass_Chl_threshold = denoise_thr_Chl)
       print(this_explant_plot)
       
-      ggsave(paste0(FullID, ".png") , plot = last_plot())
+      ggsave(paste0(dirname, "/", FullID, ".png") , plot = last_plot())
     }
   }
   
@@ -88,4 +92,12 @@ all_image_paths <- list.files("G:/Transformation/T12_Different_CIMs_TAG_TAH_TAI/
 
 filename <- all_image_paths[10]
 phenotype_assistant(image_path = filename,
-                    chroma_standard_preloaded = chroma_in)
+                    chroma_standard_preloaded = chroma_in,
+                    FP_cap = 0.15,
+                    Chl_cap = 2.5,
+                    denoise_thr_Chl = 0.5,
+                    denoise_thr_FP = 0.04)
+
+print("Image processing complete! This window can now be closed.")
+
+#Sys.sleep(60*24*3)

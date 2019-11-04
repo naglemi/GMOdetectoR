@@ -97,6 +97,13 @@ get_row_col_for_grid_item <- function(grid_item, verbose=FALSE){
 
 normalize_image <- function(image_spectrum_table, chroma_table, verbose=FALSE){
   # Crop chroma and pre-normalized image to same size
+  
+  
+  
+  print(head(image_spectrum_table$r))
+  print(head(image_spectrum_table$g))
+  print(head(chroma_table$r))
+  print(head(chroma_table$g))
   image_spectrum_table <- image_spectrum_table[image_spectrum_table$rows <= max(chroma_table$rows),]
   #image_spectrum_table[cols < max(chroma_table$cols)]
   if(verbose==TRUE){
@@ -110,14 +117,51 @@ normalize_image <- function(image_spectrum_table, chroma_table, verbose=FALSE){
   
   # Added re-scaling to mean of original to keep denoise thresholds working as they do without normalization in 
   # v0.19
-  mean_image_spectrum_table_r_before_normalizing <- mean(image_spectrum_table$r)
-  mean_image_spectrum_table_b_before_normalizing <- mean(image_spectrum_table$b)
+  
+  image_spectrum_table$r <- as.numeric(as.character(image_spectrum_table$r))
+  image_spectrum_table$g <- as.numeric(as.character(image_spectrum_table$g))
+  
+  min_image_spectrum_table_r_before_normalizing <- min(image_spectrum_table$r)
+  min_image_spectrum_table_g_before_normalizing <- min(image_spectrum_table$g)
+  max_image_spectrum_table_r_before_normalizing <- max(image_spectrum_table$r)
+  max_image_spectrum_table_g_before_normalizing <- max(image_spectrum_table$g)
+  
+  
+  
+  # Think I might be losing detail for green channel because chroma standard not on same scale
+  # Due to limits of precision?
+  #chroma_table$r <- rescale(chroma_table$r,
+  #                                  to=c(min_image_spectrum_table_r_before_normalizing,
+  #                                       max_image_spectrum_table_r_before_normalizing))
+  #chroma_table$g <- rescale(chroma_table$g,
+  #                                  to=c(min_image_spectrum_table_g_before_normalizing,
+  #                                      max_image_spectrum_table_g_before_normalizing))
+  
+  print(paste0("Max for R channel: ", max(image_spectrum_table$r)))
+  print(paste0("Max for G channel: ", max(image_spectrum_table$g)))
+  print(paste0("Min for R channel: ", min(image_spectrum_table$r)))
+  print(paste0("Min for G channel: ", min(image_spectrum_table$g)))
   
   image_spectrum_table$r <- image_spectrum_table$r / chroma_table$r
   image_spectrum_table$g <- image_spectrum_table$g / chroma_table$g
   
-  image_spectrum_table$r <- image_spectrum_table$r * mean_image_spectrum_table_r_before_normalizing
-  image_spectrum_table$g <- image_spectrum_table$g * mean_image_spectrum_table_g_before_normalizing
+  print(paste0("Max for R channel after normalizing: ", max(image_spectrum_table$r)))
+  print(paste0("Max for G channel after normalizing: ", max(image_spectrum_table$g)))
+  
+  #image_spectrum_table$r <- rescale(image_spectrum_table$r,
+  #                                  to=c(min_image_spectrum_table_r_before_normalizing,
+  #                                       max_image_spectrum_table_r_before_normalizing))
+  #image_spectrum_table$g <- rescale(image_spectrum_table$g,
+  #                                  to=c(min_image_spectrum_table_g_before_normalizing,
+  #                                       max_image_spectrum_table_g_before_normalizing))
+  
+  print(paste0("Max for R channel after rescaling: ", max(image_spectrum_table$r)))
+  print(paste0("Max for G channel after rescaling: ", max(image_spectrum_table$g)))
+  print(paste0("Min for R channel after rescaling: ", min(image_spectrum_table$r)))
+  print(paste0("Min for G channel after rescaling: ", min(image_spectrum_table$g)))
+  
+  print(head(image_spectrum_table$r))
+  print(head(image_spectrum_table$g))
   
   return(image_spectrum_table)
 }
@@ -235,6 +279,7 @@ CLS_and_plot <- function(image_spectrum_table,
   
   # Must normalize before scaling since normalization depends on cropping scaling depends on first pixel not being cropped out
   if(normalize==TRUE){
+    stop("Still need to modify function for FULL normalization of all wavelengths, not just those used in false color")
     image_spectrum_table <- normalize_image(image_spectrum_table, chroma_table)
   }
   
@@ -257,6 +302,12 @@ extract_plot_grid_item <- function(image_spectrum_table,
                                    standardize_rgb=TRUE,
                                    cropping_option){
   
+  # Must normalize before scaling since normalization depends on cropping scaling depends on first pixel not being cropped out
+  # just moved this to top in v0.19
+  if(normalize==TRUE){
+    image_spectrum_table <- normalize_image(image_spectrum_table, chroma_table)
+  }
+  
   ## Denoising
   if(to_denoise==TRUE){
     image_spectrum_table <- denoise(image_spectrum_table, threshold_FP=denoise_threshold_FP, threshold_Chl=denoise_threshold_Chl)
@@ -267,10 +318,7 @@ extract_plot_grid_item <- function(image_spectrum_table,
     image_spectrum_table$r[which(image_spectrum_table$r > max_intensity_Chl)] <- max_intensity_Chl
   }
   
-  # Must normalize before scaling since normalization depends on cropping scaling depends on first pixel not being cropped out
-  if(normalize==TRUE){
-    image_spectrum_table <- normalize_image(image_spectrum_table, chroma_table)
-  }
+
   
   # do this AFTER CROPPING and BEFORE SCALING so it doesn't screw up later steps or get nullified by prior steps
   if(standardize_rgb==TRUE){
