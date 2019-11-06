@@ -83,7 +83,7 @@ phenotype_assistant_loop <- function(folder_path_all_images,
     if(grid_type==20){
       for(j in 1:20){
         print(paste0("On explant ", j))
-
+        
         this_explant_plot <- crop_and_plot(mode=what_to_plot,
                                            input_toggle=TRUE,
                                            # The below line is currently the same for any type of plot
@@ -122,7 +122,7 @@ phenotype_assistant_loop(folder_path_all_images = "G:/Transformation/T12_Differe
                          denoise_thr_Chl = 0.5,
                          denoise_thr_FP = 0.04)
 
-# Started at 3:00pm
+# Started at 4:15pm
 Sys.time()
 
 #print("Image processing complete! This window can now be closed.")
