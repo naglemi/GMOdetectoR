@@ -203,7 +203,8 @@ denoise <- function(image_spectrum_table, threshold_FP, threshold_Chl, verbose=F
   return(image_spectrum_table)
 }
 
-assign_ID_index_from_row_column_on_tray <- function(data_to_parse, components_list, mode="table"){
+# v0.19 fixed redundancy in how both filename and data_to_parse refer to same thing. Make both "data_to_parse" within this scope
+assign_ID_index_from_row_column_on_tray <- function(data_to_parse = filename, components_list, mode="table", verbose=FALSE){
   #dictionary <- fread("/scratch2/NSF_GWAS/macroPhor_Array/row_column_key.csv")
   # Hardcoding dictionary in v0.19
   dictionary <- cbind(c(0,0,0,0,0,0,0,
@@ -228,32 +229,35 @@ assign_ID_index_from_row_column_on_tray <- function(data_to_parse, components_li
   if(mode=="filename"){
     
     # Patch added in v0.19 for compatibility regardless of whether "_cyan" is at end of filename
-    if(grepl("cyan", filename)==1){
+    if(grepl("cyan", data_to_parse)==1){
       ndelimiters=9
     }else{
       ndelimiters=8
     }
     
     
-    row <- str_split_fixed(basename(file_path_sans_ext(filename)), "_", 9)[ndelimiters-1]
+    row <- str_split_fixed(basename(file_path_sans_ext(data_to_parse)), "_", 9)[ndelimiters-1]
     # Changed in v0.19 along with patch above
-    col <- str_split_fixed(basename(file_path_sans_ext(filename)), "_", ndelimiters)[ndelimiters]
+    col <- str_split_fixed(basename(file_path_sans_ext(data_to_parse)), "_", ndelimiters)[ndelimiters]
     row_col <- paste0(row, "_", col)
     ID <- dictionary[which(dictionary$row_column == row_col),]$ID
     # Debugging lines added in v0.19
-    print(paste0("This row is ", row))
-    print(paste0("This col is ", col))
-    print(paste0("This row_col is ", row_col))
-    print(paste0("This filename (stripped) is ", basename(file_path_sans_ext(filename))))
-    print(paste0("This ID about to be returned from assign_ID_index_from_roW_column_on_tray is ", ID))
+    if(verbose==TRUE){
+      print(paste0("This row is ", row))
+      print(paste0("This col is ", col))
+      print(paste0("This row_col is ", row_col))
+      print(paste0("This filename (stripped) is ", basename(file_path_sans_ext(data_to_parse))))
+      print(paste0("This ID about to be returned from assign_ID_index_from_roW_column_on_tray is ", ID))
+    }
+
     return(ID)
   }
 }
 
 parse_trayplateID <- function(image_path){
-  filename <- file_path_sans_ext(basename(image_path))
-  trayID <- str_split_fixed(filename, "_", 2)[1]
-  plateID <- assign_ID_index_from_row_column_on_tray(data_to_parse = filename, mode="filename")
+  imgpath_stripped <- file_path_sans_ext(basename(image_path))
+  trayID <- str_split_fixed(imgpath_stripped, "_", 2)[1]
+  plateID <- assign_ID_index_from_row_column_on_tray(data_to_parse = imgpath_stripped, mode="filename")
   trayplateID <- paste0(trayID, "_", plateID)
   return(trayplateID)
 }
@@ -300,7 +304,9 @@ extract_plot_grid_item <- function(image_spectrum_table,
                                    FP,
                                    min_for_rgb_scaling=0,
                                    standardize_rgb=TRUE,
-                                   cropping_option){
+                                   cropping_option,
+                                   filename=filename){
+  print(paste0("Filename is ", filename))
   
   # Must normalize before scaling since normalization depends on cropping scaling depends on first pixel not being cropped out
   # just moved this to top in v0.19
@@ -362,7 +368,7 @@ extract_plot_grid_item <- function(image_spectrum_table,
 
 crop_and_plot <- function(mode="whole_plate", grid_item, image_spectrum_table = image_spectrum_table_colored, image_type="hyperspectral",
                           first_pass_FP_threshold, first_pass_Chl_threshold, image_to_crop = img_in_backend, input_toggle,
-                          sum_DsRed_imported_for_some_reason = sum_DsRed_global){
+                          sum_DsRed_imported_for_some_reason = sum_DsRed_global, name_to_parse){
   
   if(input_toggle==FALSE){
     return(NA)
@@ -464,7 +470,7 @@ crop_and_plot <- function(mode="whole_plate", grid_item, image_spectrum_table = 
   }
   if(mode=="single_explant" | mode=="both"){
     # Adding this in v0.19, not sure why it needs to be here suddenly
-    FullID <<- paste0(parse_trayplateID(filename), "_exp", grid_item)
+    FullID <<- paste0(parse_trayplateID(name_to_parse), "_exp", grid_item)
     y_newsize <- y_crop_rightside - y_crop_leftside
     x_newsize <- x_crop_leftside - x_crop_rightside
     
