@@ -98,15 +98,15 @@ get_row_col_for_grid_item <- function(grid_item, verbose=FALSE){
 normalize_image <- function(image_spectrum_table, chroma_table, verbose=FALSE){
   # Crop chroma and pre-normalized image to same size
   
-  
-  
-  print(head(image_spectrum_table$r))
-  print(head(image_spectrum_table$g))
-  print(head(chroma_table$r))
-  print(head(chroma_table$g))
   image_spectrum_table <- image_spectrum_table[image_spectrum_table$rows <= max(chroma_table$rows),]
   #image_spectrum_table[cols < max(chroma_table$cols)]
   if(verbose==TRUE){
+    print("Head of r and g channels for image and chroma:")
+    print(head(image_spectrum_table$r))
+    print(head(image_spectrum_table$g))
+    print(head(chroma_table$r))
+    print(head(chroma_table$g))
+    print("Dimensions and maximum row index for image and chroma:")
     print(dim(image_spectrum_table))
     print(max(image_spectrum_table$rows))
     print(dim(chroma_table))
@@ -137,31 +137,37 @@ normalize_image <- function(image_spectrum_table, chroma_table, verbose=FALSE){
   #                                  to=c(min_image_spectrum_table_g_before_normalizing,
   #                                      max_image_spectrum_table_g_before_normalizing))
   
-  print(paste0("Max for R channel: ", max(image_spectrum_table$r)))
-  print(paste0("Max for G channel: ", max(image_spectrum_table$g)))
-  print(paste0("Min for R channel: ", min(image_spectrum_table$r)))
-  print(paste0("Min for G channel: ", min(image_spectrum_table$g)))
+
   
   image_spectrum_table$r <- image_spectrum_table$r / chroma_table$r
   image_spectrum_table$g <- image_spectrum_table$g / chroma_table$g
   
-  print(paste0("Max for R channel after normalizing: ", max(image_spectrum_table$r)))
-  print(paste0("Max for G channel after normalizing: ", max(image_spectrum_table$g)))
+  if(verbose==TRUE){
+    print(paste0("Max for R channel: ", max(image_spectrum_table$r)))
+    print(paste0("Max for G channel: ", max(image_spectrum_table$g)))
+    print(paste0("Min for R channel: ", min(image_spectrum_table$r)))
+    print(paste0("Min for G channel: ", min(image_spectrum_table$g)))
+    
+    print(paste0("Max for R channel after normalizing: ", max(image_spectrum_table$r)))
+    print(paste0("Max for G channel after normalizing: ", max(image_spectrum_table$g)))
+    
+    #image_spectrum_table$r <- rescale(image_spectrum_table$r,
+    #                                  to=c(min_image_spectrum_table_r_before_normalizing,
+    #                                       max_image_spectrum_table_r_before_normalizing))
+    #image_spectrum_table$g <- rescale(image_spectrum_table$g,
+    #                                  to=c(min_image_spectrum_table_g_before_normalizing,
+    #                                       max_image_spectrum_table_g_before_normalizing))
+    
+    print(paste0("Max for R channel after rescaling: ", max(image_spectrum_table$r)))
+    print(paste0("Max for G channel after rescaling: ", max(image_spectrum_table$g)))
+    print(paste0("Min for R channel after rescaling: ", min(image_spectrum_table$r)))
+    print(paste0("Min for G channel after rescaling: ", min(image_spectrum_table$g)))
+    
+    print(head(image_spectrum_table$r))
+    print(head(image_spectrum_table$g))
+  }
   
-  #image_spectrum_table$r <- rescale(image_spectrum_table$r,
-  #                                  to=c(min_image_spectrum_table_r_before_normalizing,
-  #                                       max_image_spectrum_table_r_before_normalizing))
-  #image_spectrum_table$g <- rescale(image_spectrum_table$g,
-  #                                  to=c(min_image_spectrum_table_g_before_normalizing,
-  #                                       max_image_spectrum_table_g_before_normalizing))
-  
-  print(paste0("Max for R channel after rescaling: ", max(image_spectrum_table$r)))
-  print(paste0("Max for G channel after rescaling: ", max(image_spectrum_table$g)))
-  print(paste0("Min for R channel after rescaling: ", min(image_spectrum_table$r)))
-  print(paste0("Min for G channel after rescaling: ", min(image_spectrum_table$g)))
-  
-  print(head(image_spectrum_table$r))
-  print(head(image_spectrum_table$g))
+
   
   return(image_spectrum_table)
 }
@@ -305,8 +311,11 @@ extract_plot_grid_item <- function(image_spectrum_table,
                                    min_for_rgb_scaling=0,
                                    standardize_rgb=TRUE,
                                    cropping_option,
-                                   filename=filename){
-  print(paste0("Filename is ", filename))
+                                   filename=filename,
+                                   verbose=FALSE){
+  if(verbose==TRUE){
+    print(paste0("Filename is ", filename))
+  }
   
   # Must normalize before scaling since normalization depends on cropping scaling depends on first pixel not being cropped out
   # just moved this to top in v0.19
@@ -355,7 +364,11 @@ extract_plot_grid_item <- function(image_spectrum_table,
   # IF DEFINED IN THE FORMER, ONLY APPEARS FOR WHOLE PLATE
   FullID <<- paste0(parse_trayplateID(filename), "_exp", grid_item)
   # Debugging statement for v0.19
-  print(paste0("Full ID is ", FullID))
+  
+  if(verbose==TRUE){
+    print(paste0("Full ID is ", FullID))
+  }
+
   
   if(FC==TRUE){
     image_spectrum_table$color <- rgb(red= image_spectrum_table$r,
@@ -368,7 +381,8 @@ extract_plot_grid_item <- function(image_spectrum_table,
 
 crop_and_plot <- function(mode="whole_plate", grid_item, image_spectrum_table = image_spectrum_table_colored, image_type="hyperspectral",
                           first_pass_FP_threshold, first_pass_Chl_threshold, image_to_crop = img_in_backend, input_toggle,
-                          sum_DsRed_imported_for_some_reason = sum_DsRed_global, name_to_parse){
+                          sum_DsRed_imported_for_some_reason = sum_DsRed_global, name_to_parse,
+                          CLSmode = "threshold", indices_submitted_to_subset_to, verbose=FALSE){
   
   if(input_toggle==FALSE){
     return(NA)
@@ -392,14 +406,23 @@ crop_and_plot <- function(mode="whole_plate", grid_item, image_spectrum_table = 
     }
     if (image_type=="CLS"){
       image_full_spectrum_cropped <- data.table(cbind(image_to_crop$x, image_to_crop$y, image_to_crop[[]]))
-      # WHOA MAYBE I SHOULDNT CHANGE THIS BUT I THINK I SHOULD
-      colnames(image_full_spectrum_cropped) <- c("cols", "rows", image_to_crop@wavelength)
+      # WHOA MAYBE I SHOULDNT CHANGE THIS BUT I THINK I SHOULD (pre-v0.18)
+      # colnames(image_full_spectrum_cropped) <- c("cols", "rows", image_to_crop@wavelength)
+      # Try changing back to see if it fixed mismatch pixels (stretched plants) in plot (v0.19)
+      colnames(image_full_spectrum_cropped) <- c("rows", "cols", image_to_crop@wavelength)
       # Need to change from colnames to indices because of data structure.. NOT. Change to data.table earlier instead.
       image_full_spectrum_cropped <- image_full_spectrum_cropped[which(image_full_spectrum_cropped$cols < crop_bottom & image_full_spectrum_cropped$cols > crop_top & image_full_spectrum_cropped$rows>crop_left & image_full_spectrum_cropped$rows<crop_right),]
       
       image_spectrum_table_all_cropped <- CLS_workflow(spectrum_in_to_CLS = image_full_spectrum_cropped,
                                                        pass_FP_threshold_from_input = first_pass_FP_threshold,
-                                                       pass_Chl_threshold_from_input = first_pass_Chl_threshold)
+                                                       pass_Chl_threshold_from_input = first_pass_Chl_threshold,
+                                                       mode = CLSmode, indices_submitted_to_subset_to = indices_submitted_to_subset_to)
+    }
+    if(image_type=="crop_segment_output"){
+      # This mode is different, outputs the cropped (post-transformed by alignment) segmentation output
+      # ...instead of a plot like the other two modes.
+      image_spectrum_table_all_cropped <- image_spectrum_table[which(image_spectrum_table$y < crop_bottom & image_spectrum_table$y > crop_top & image_spectrum_table$x>crop_left & image_spectrum_table$x<crop_right),]
+      return(image_spectrum_table_all_cropped)
     }
     
     
@@ -409,7 +432,10 @@ crop_and_plot <- function(mode="whole_plate", grid_item, image_spectrum_table = 
     # Is this variable defined within the proper scope?
     # Note: I think that error only happened because I had the + before ggtitle on the same line
     # instead of the line before
-    print(paste0("Full ID right before plotting is ", FullID))
+    if(verbose==TRUE){
+      print(paste0("Full ID right before plotting is ", FullID))
+    }
+    
     
     # This was commented out for some reason in v0.18 but I am uncommenting in v0.19 because of
     # error when using backend for PhenotypeAssistant
@@ -424,18 +450,23 @@ crop_and_plot <- function(mode="whole_plate", grid_item, image_spectrum_table = 
       ggtitle(FullID)
     
     if (image_type=="CLS"){
-      print("Total DsRed in final image about to be plotted: ")
-      print(sum_DsRed_imported_for_some_reason)
+      if(verbose==TRUE){
+        print("Total DsRed in final image about to be plotted: ")
+        print(sum_DsRed_imported_for_some_reason)
+      }
+
       p <- p + ggtitle(paste0("Total DsRed coefficient over area: ", sum_DsRed_imported_for_some_reason))
       
+      image_spectrum_table_all_cropped[image_spectrum_table_all_cropped < 0] <- 0
       a <- ggplot(data=image_spectrum_table_all_cropped)+
         geom_tile(aes(y=rows, x=cols, fill=DsRed))+
         theme(axis.ticks = element_blank(), axis.title = element_blank(),
               panel.background = element_blank(), axis.text = element_blank(),
               panel.border = element_blank(), panel.grid.major = element_blank(),
               panel.grid.minor = element_blank(), axis.line = element_blank())+
-        ggtitle(paste0("Total DsRed in image:\n", 
-                       format(sum_DsRed_global/1000, digits=1), "k"))
+        ggtitle(paste0("Total DsRed in segment:\n", 
+                       format(sum_DsRed_global/1000, digits=1), "k"))+
+        scale_color_gradientn(colours = rainbow(5))
       
       b <- ggplot(data=image_spectrum_table_all_cropped)+
         geom_tile(aes(y=rows, x=cols, fill=ZsYellow))+
@@ -443,8 +474,9 @@ crop_and_plot <- function(mode="whole_plate", grid_item, image_spectrum_table = 
               panel.background = element_blank(), axis.text = element_blank(),
               panel.border = element_blank(), panel.grid.major = element_blank(),
               panel.grid.minor = element_blank(), axis.line = element_blank())+
-        ggtitle(paste0("Total ZsYellow in image:\n", 
-                       format(sum_ZsYellow_global/1000, digits=1), "k"))
+        ggtitle(paste0("Total ZsYellow in segment:\n", 
+                       format(sum_ZsYellow_global/1000, digits=1), "k"))+
+        scale_color_gradientn(colours = rainbow(5))
       
       c <- ggplot(data=image_spectrum_table_all_cropped)+
         geom_tile(aes(y=rows, x=cols, fill=ChlA))+
@@ -452,8 +484,9 @@ crop_and_plot <- function(mode="whole_plate", grid_item, image_spectrum_table = 
               panel.background = element_blank(), axis.text = element_blank(),
               panel.border = element_blank(), panel.grid.major = element_blank(),
               panel.grid.minor = element_blank(), axis.line = element_blank())+
-        ggtitle(paste0("Total Chl-A in image:\n", 
-                       format(sum_ChlA_global/1000, digits=1), "k"))
+        ggtitle(paste0("Total Chl-A in segment:\n", 
+                       format(sum_ChlA_global/1000, digits=1), "k"))+
+        scale_color_gradientn(colours = rainbow(5))
       
       d <- ggplot(data=image_spectrum_table_all_cropped)+
         geom_tile(aes(y=rows, x=cols, fill=ChlB))+
@@ -461,8 +494,9 @@ crop_and_plot <- function(mode="whole_plate", grid_item, image_spectrum_table = 
               panel.background = element_blank(), axis.text = element_blank(),
               panel.border = element_blank(), panel.grid.major = element_blank(),
               panel.grid.minor = element_blank(), axis.line = element_blank())+
-        ggtitle(paste0("Total Chl-B in image:\n", 
-                       format(sum_ChlB_global/1000, digits=1), "k"))
+        ggtitle(paste0("Total Chl-B in segment:\n", 
+                       format(sum_ChlB_global/1000, digits=1), "k"))+
+        scale_color_gradientn(colours = rainbow(5))
       
       p <- grid.arrange(a, b, c, d)
     }
@@ -505,7 +539,10 @@ crop_and_plot <- function(mode="whole_plate", grid_item, image_spectrum_table = 
                                                           pass_Chl_threshold_from_input = first_pass_Chl_threshold)
     }
     
-    print(paste0("Full ID right before plotting is ", FullID))
+    if(verbose==TRUE){
+      print(paste0("Full ID right before plotting is ", FullID))
+    }
+
     
     q <- ggplot(data=image_spectrum_table_single_cropped, aes(x=cols, y=rows, fill=color)) +
       coord_equal() + geom_tile() + scale_fill_identity() +
@@ -517,10 +554,14 @@ crop_and_plot <- function(mode="whole_plate", grid_item, image_spectrum_table = 
     ggtitle(FullID)
     
     if (image_type=="CLS"){
-      print("Total DsRed in final image about to be plotted: ")
-      print(sum_DsRed_imported_for_some_reason)
+      if(verbose==TRUE){
+        print("Total DsRed in final image about to be plotted: ")
+        print(sum_DsRed_imported_for_some_reason)
+      }
+
       q <- q + ggtitle(paste0("Total DsRed coefficient over area: ", sum_DsRed_imported_for_some_reason))
       
+      image_spectrum_table_single_cropped[image_spectrum_table_single_cropped < 0] <- 0
       a <- ggplot(data=image_spectrum_table_single_cropped)+
         geom_tile(aes(y=rows, x=cols, fill=DsRed))+
         theme(axis.ticks = element_blank(), axis.title = element_blank(),
@@ -528,7 +569,8 @@ crop_and_plot <- function(mode="whole_plate", grid_item, image_spectrum_table = 
               panel.border = element_blank(), panel.grid.major = element_blank(),
               panel.grid.minor = element_blank(), axis.line = element_blank())+
         ggtitle(paste0("Total DsRed in image:\n", 
-                       format(sum_DsRed_global/1000, digits=1), "k"))
+                       format(sum_DsRed_global/1000, digits=1), "k"))+
+        scale_color_gradientn(colours = rainbow(5))
       
       b <- ggplot(data=image_spectrum_table_single_cropped)+
         geom_tile(aes(y=rows, x=cols, fill=ZsYellow))+
@@ -537,7 +579,8 @@ crop_and_plot <- function(mode="whole_plate", grid_item, image_spectrum_table = 
               panel.border = element_blank(), panel.grid.major = element_blank(),
               panel.grid.minor = element_blank(), axis.line = element_blank())+
         ggtitle(paste0("Total ZsYellow in image:\n", 
-                       format(sum_ZsYellow_global/1000, digits=1), "k"))
+                       format(sum_ZsYellow_global/1000, digits=1), "k"))+
+        scale_color_gradientn(colours = rainbow(5))
       
       c <- ggplot(data=image_spectrum_table_single_cropped)+
         geom_tile(aes(y=rows, x=cols, fill=ChlA))+
@@ -546,7 +589,8 @@ crop_and_plot <- function(mode="whole_plate", grid_item, image_spectrum_table = 
               panel.border = element_blank(), panel.grid.major = element_blank(),
               panel.grid.minor = element_blank(), axis.line = element_blank())+
         ggtitle(paste0("Total Chl-A in image:\n", 
-                       format(sum_ChlA_global/1000, digits=1), "k"))
+                       format(sum_ChlA_global/1000, digits=1), "k"))+
+        scale_color_gradientn(colours = rainbow(5))
       
       d <- ggplot(data=image_spectrum_table_single_cropped)+
         geom_tile(aes(y=rows, x=cols, fill=ChlB))+
@@ -555,7 +599,8 @@ crop_and_plot <- function(mode="whole_plate", grid_item, image_spectrum_table = 
               panel.border = element_blank(), panel.grid.major = element_blank(),
               panel.grid.minor = element_blank(), axis.line = element_blank())+
         ggtitle(paste0("Total Chl-B in image:\n", 
-                       format(sum_ChlB_global/1000, digits=1), "k"))
+                       format(sum_ChlB_global/1000, digits=1), "k"))+
+        scale_color_gradientn(colours = rainbow(5))
       
       q <- grid.arrange(a, b, c, d)
     }
@@ -573,8 +618,8 @@ crop_and_plot <- function(mode="whole_plate", grid_item, image_spectrum_table = 
   }
 }
 
-decide_what_to_plot <- function(mode=NA){
-  print(mode)
+decide_what_to_plot <- function(mode=NA, verbose=FALSE){
+  if(verbose==TRUE) print(mode)
   if(is.na(mode)==TRUE){
     return("Pick a mode")
   }
@@ -587,57 +632,124 @@ decide_what_to_plot <- function(mode=NA){
   if(length(mode) == 2){
     to_do <- "both"
   }
-  print(to_do)
+  if(verbose==TRUE) print(to_do)
   return(to_do)
 }
 
-CLS_workflow <- function(spectrum_in_to_CLS = image_full_spectrum_cropped, pass_FP_threshold_from_input, pass_Chl_threshold_from_input, plot=FALSE){
+CLS_workflow <- function(spectrum_in_to_CLS = image_full_spectrum_cropped, pass_FP_threshold_from_input, pass_Chl_threshold_from_input, plot=FALSE,
+                         mode = "threshold", indices_submitted_to_subset_to, verbose=FALSE){
   
-  # Get rid of the rows and column columns (x and y position)
-  
-  choose_pixels <- function(FP_lambda='582.6952', Chl_lambda='508.763', full_spectrum=this_full_spectrum, CLS_threshold_FP, CLS_threshold_Chl){
+  choose_pixels <- function(FP_lambda='582.6952', Chl_lambda='508.763', full_spectrum=this_full_spectrum, CLS_threshold_FP, CLS_threshold_Chl,
+                            Mode = mode, Indices_submitted_to_subset_to = indices_submitted_to_subset_to, verbose=FALSE){
+    
+    
+    
     all_pixel_indices <- seq.int(nrow(full_spectrum))
     
-    print("Length of all_pixel_indices")
-    print(length(all_pixel_indices))
-    print(FP_lambda)
-    print(Chl_lambda)
-    #print(colnames(full_spectrum))
-    #print("Head of full spectrum:")
-    #print(head(full_spectrum))
-    print("Dimensions of full spectrum:")
-    print(dim(full_spectrum))
-    #print("Head of full spectrum evaluated at FP wavelength:")
-    # HAD TO GET RID OF EVAL AND CALL BY PASSING VARIABLE DIRECTLY INTO COLUMN NAME!!!
-    # https://stackoverflow.com/questions/19730806/r-access-data-frame-column-using-variable
-    # No actually this is a data frame and I had to use get instead of eval
-    #print(head(full_spectrum[,get(FP_lambda)]))
-    #print("length of full spectrum evaluated at FP wavelength:")
-    #print(length(full_spectrum[,get(FP_lambda)]))
-    
-    print("Are there pixels in the full spectrum that have intensity above the reporter protein threshold?")
-    print(head(which(full_spectrum[,get(FP_lambda)] > CLS_threshold_FP))) # This should give a vector of TRUE/FALSE
-    print("Max:")
-    print(max(full_spectrum[,get(FP_lambda)]))
-    if(max(full_spectrum[,get(FP_lambda)])<CLS_threshold_FP){
-      print(stop("Need a lower max for FP"))
+    if(verbose==TRUE){
+      print("Length of all_pixel_indices")
+      print(length(all_pixel_indices))
     }
-    if(max(full_spectrum[,get(Chl_lambda)])<CLS_threshold_Chl){
-      print(stop("Need a lower max for Chl"))
+    
+    if (Mode == "threshold"){
+      
+      # Need to chop off x and y columns up front in this mode
+      # Actually, I don't think this is needed since all this function outputs is a 
+      # ... list of pixel indices
+      full_spectrum=full_spectrum[,3:ncol(full_spectrum)]
+      
+      if(verbose==TRUE){
+        print(FP_lambda)
+        print(Chl_lambda)
+        #print(colnames(full_spectrum))
+        #print("Head of full spectrum:")
+        #print(head(full_spectrum))
+        print("Dimensions of full spectrum:")
+        print(dim(full_spectrum))
+        #print("Head of full spectrum evaluated at FP wavelength:")
+        # HAD TO GET RID OF EVAL AND CALL BY PASSING VARIABLE DIRECTLY INTO COLUMN NAME!!!
+        # https://stackoverflow.com/questions/19730806/r-access-data-frame-column-using-variable
+        # No actually this is a data frame and I had to use get instead of eval
+        #print(head(full_spectrum[,get(FP_lambda)]))
+        #print("length of full spectrum evaluated at FP wavelength:")
+        #print(length(full_spectrum[,get(FP_lambda)]))
+        
+        print("Are there pixels in the full spectrum that have intensity above the reporter protein threshold?")
+        print(head(which(full_spectrum[,get(FP_lambda)] > CLS_threshold_FP))) # This should give a vector of TRUE/FALSE
+        print("Max:")
+        print(max(full_spectrum[,get(FP_lambda)]))
+        if(max(full_spectrum[,get(FP_lambda)])<CLS_threshold_FP){
+          print(stop("Need a lower max for FP"))
+        }
+        if(max(full_spectrum[,get(Chl_lambda)])<CLS_threshold_Chl){
+          print(stop("Need a lower max for Chl"))
+        }
+      }
+
+      # Maybe I can replace the whole use of the all_pixel_indices vector with arr.ind=TRUE option in which
+      # Will that fix bug?
+      
+      #pixels_list_first_pass <- all_pixel_indices[which(full_spectrum[,get(FP_lambda)] > CLS_threshold_FP)]
+      # First subset by FP, then Chl intensity
+      pixels_list_first_pass <- which(arr.ind = TRUE, x = full_spectrum[,get(FP_lambda)] > CLS_threshold_FP)
+      
+      if(verbose==TRUE){
+        print(paste0("Significant FP is at least ", CLS_threshold_FP))
+        print("Number of pixels with significant FP:")
+        
+        print(length(pixels_list_first_pass))
+        print("Head of pixels with significant FP:")
+        
+        print(head(pixels_list_first_pass))
+      }
+
+      pixels_with_significant_Chl <- all_pixel_indices[which(full_spectrum[,get(Chl_lambda)] > CLS_threshold_Chl)]
+      
+      pixels_with_something <- unique(c(pixels_list_first_pass, pixels_with_significant_Chl))
     }
-    # Maybe I can replace the whole use of the all_pixel_indices vector with arr.ind=TRUE option in which
-    # Will that fix bug?
     
-    #pixels_with_significant_FP <- all_pixel_indices[which(full_spectrum[,get(FP_lambda)] > CLS_threshold_FP)]
-    pixels_with_significant_FP <- which(arr.ind = TRUE, x = full_spectrum[,get(FP_lambda)] > CLS_threshold_FP)
-    print(paste0("Significant FP is at least ", CLS_threshold_FP))
-    print("Number of pixels with significant FP:")
+    if (Mode == "integrate"){
+      if(verbose==TRUE){
+        print("Start subsetting to selected pixels of this tissue at...")
+        print(Sys.time())
+        
+        # THIS (0.3) SHOULD NOT BE HARDCODED
+        print("What is the format of the object Indices_submitted_to_subset_to ?")
+        print(dim(Indices_submitted_to_subset_to))
+        print(head(Indices_submitted_to_subset_to))
+        #pixels_with_something <- which(arr.ind = TRUE, x = Indices_submitted_to_subset_to[,4] > 0.3)
+        print("What is the length of the object all_pixel_indices?")
+        print(dim(all_pixel_indices))
+        print("What does all_pixel_indices it look like?")
+        print(head(all_pixel_indices))
+        print(tail(all_pixel_indices))
+        print("Head, dim, head factors, min and max of Indices_submitted_to_subset_to:")
+        print(head(Indices_submitted_to_subset_to))
+        print(dim(Indices_submitted_to_subset_to))
+        print(head(levels(factor(Indices_submitted_to_subset_to[,4]))))
+        print(min(Indices_submitted_to_subset_to[,4]))
+        print(max(Indices_submitted_to_subset_to[,4]))
+      }
+
+
+      pixels_with_something <- all_pixel_indices[which(Indices_submitted_to_subset_to[,4] > 0.05)]
+      
+      if(verbose==TRUE){
+        print("To help troubleshoot cropping, maximum value (for pixel index) in pixels_with_something is")
+        print(max(pixels_with_something))
+        print("... and the dimensions of pixels_with_something are: ")
+        print(dim(pixels_with_something))
+        print("Finish at")
+        print(Sys.time())
+        #stop("Stopping here now")
+      }
+    }
     
-    print(length(pixels_with_significant_FP))
-    print("Head of pixels with significant FP:")
-    print(head(pixels_with_significant_FP))
-    pixels_with_significant_Chl <- all_pixel_indices[which(full_spectrum[,get(Chl_lambda)] > CLS_threshold_Chl)]
-    pixels_with_something <- unique(c(pixels_with_significant_FP, pixels_with_significant_Chl))
+    if(verbose==TRUE) {
+      print("Done with function choose_pixels, now returning pixels_with_something")
+      cat("\n\n")
+    }
+
     return(pixels_with_something)
   }
   
@@ -645,53 +757,86 @@ CLS_workflow <- function(spectrum_in_to_CLS = image_full_spectrum_cropped, pass_
     # This should not take in the image from the backend, but something which is passed through
     # and can be either cropped or uncropped image
     # print(spectrum_in_to_CLS[10:10])
+    
+    # Putting statements in here a bad idea if working w/ many pixels
+    
+    #print("Unformatted spectrum: ")
+    #print(spectrum_in_to_CLS[200:210,1:10])
+    
+    #print("Dimensions of spectrum_in_to_CLS within model_and_record_single pixel:")
+    #print(dim(spectrum_in_to_CLS))
     spectrum_formatted <- as.numeric(as.matrix(unlist(spectrum_in_to_CLS[i,]), nrow=1))
+    #cat("\n\n")
+    
+    #print("Xmatrix: ")
+    #print(Xmatrix[200:210,1:5])
+    #print("Is Xmatrix numeric?")
+    #print(is.numeric(Xmatrix))
+    #cat("\n\n")
+    
+
     
     model_out <- fastLmPure(Xmatrix, spectrum_formatted)
     #print(model_out$coefficients)
     
+    #print("Dimensions of CLS_table within model_and_record_single_pixel")
+    #print(dim(CLS_table))
     # Make sure colnames are set properly
+    
     CLS_table[i, DsRed := model_out$coefficients[2]/model_out$se[2]]
     CLS_table[i, ZsYellow := model_out$coefficients[3]/model_out$se[3]]
     CLS_table[i, ChlA := model_out$coefficients[4]/model_out$se[4]]
     CLS_table[i, ChlB := model_out$coefficients[5]/model_out$se[5]]
+    #print("This model:")
+    #print(model_out)
+    #stop("Stopping here")
   }
   
-  perform_CLS <- function(pixels_to_test){
-    options(warn=-1)
+  perform_CLS <- function(pixels_to_test, verbose=FALSE){
+    #options(warn=-1)
     #pb <- txtProgressBar(min = 0, max = length(pixels_to_test), initial = 0)
-    print("About to start CLS over all pixels passing threshold. Here is table:")
-    print(head(CLS_table))
-    #CLS_table_out <- foreach(i=pixels_to_test) %do% {
-    print(paste0("Number of pixels to test: ", length(pixels_to_test)))
-    print("First 5 pixels to test: ")
-    print(head(pixels_to_test))
+    if(verbose==TRUE){
+      print("About to start CLS over all pixels passing threshold. Here is table:")
+      print(head(CLS_table))
+      #CLS_table_out <- foreach(i=pixels_to_test) %do% {
+      print(paste0("Number of pixels to test: ", length(pixels_to_test)))
+      print("First 5 pixels to test: ")
+      print(head(pixels_to_test))
+    }
+
     # Need to get rid of the row and col columns I used for indexing earlier
     spectrum_in_to_CLS$rows <<- NULL
     spectrum_in_to_CLS$cols <<- NULL
-    print(head(CLS_table))
-    withProgress(message = "Running CLS over all pixels passing denoising",
-                 max=length(pixels_to_test),
-                 value = 0, {
-                   for(i in pixels_to_test){
-                     #print(i)
-                     model_and_record_single_pixel(i)
-                     incProgress(1)
-                   }      
-                 })
+    if(verbose==TRUE) print(head(CLS_table))
+    if (shiny::isRunning() == TRUE){
+      withProgress(message = "Running CLS over all pixels passing denoising",
+                   max=length(pixels_to_test),
+                   value = 0, {
+                     for(i in pixels_to_test){
+                       #print(i)
+                       model_and_record_single_pixel(i)
+                       incProgress(1)
+                     }      
+                   })
+    }else{
+      for(i in pixels_to_test) model_and_record_single_pixel(i)
+    }
     
     options(warn=0)
-    print("Done. Here is table again:")
-    print(head(CLS_table))
     
+    if(verbose==TRUE){
+      print("Done. Here is table again:")
+      print(head(CLS_table))
+    }
   }
   
   finish_processing_CLS_table <- function(CLS_table, chosen_pixels_in = chosen_pixels){
     # THIS IS SLOW
     # Faster way: https://stackoverflow.com/questions/38226323/replace-all-values-in-a-data-table-given-a-condition?rq=1
-    print(Sys.time())
+    
+    if(verbose==TRUE) print(Sys.time())
     CLS_table[is.na(CLS_table)] <- 0
-    print(Sys.time())
+    if(verbose==TRUE) print(Sys.time())
     #CLS_table[!chosen_pixels_in, DsRed := 0]
     #CLS_table[!chosen_pixels_in, ZsYellow := 0]
     #CLS_table[!chosen_pixels_in, ChlA := 0]
@@ -699,8 +844,11 @@ CLS_workflow <- function(spectrum_in_to_CLS = image_full_spectrum_cropped, pass_
     
     CLS_table$ChlB[which(CLS_table$ChlB<0)] <- 0
     CLS_table$DsRed[which(CLS_table$DsRed<0)] <- 0
-    print(paste0("Maximum DsRed: ", max(CLS_table$DsRed)))
-    print(paste0("Maximum ChlB: ", max(CLS_table$ChlB)))
+    
+    if(verbose==TRUE){
+      print(paste0("Maximum DsRed: ", max(CLS_table$DsRed)))
+      print(paste0("Maximum ChlB: ", max(CLS_table$ChlB)))
+    }
     
     sum_DsRed_local <- sum(CLS_table$DsRed)
     sum_ZsYellow_local <- sum(CLS_table$ZsYellow)
@@ -710,15 +858,19 @@ CLS_workflow <- function(spectrum_in_to_CLS = image_full_spectrum_cropped, pass_
     assign("sum_ZsYellow_global", sum_ZsYellow_local, envir=globalenv())
     assign("sum_ChlA_global", sum_ChlA_local, envir=globalenv())
     assign("sum_ChlB_global", sum_ChlB_local, envir=globalenv())
-    print("!!!!!!!!!!!!!!SUMS!!!!!!!!!!!!!!!!!")
-    print(sum_DsRed_local)
-    print(sum_ZsYellow_local)
-    print(sum_ChlA_local)
-    print(sum_ChlB_local)
-    print(sum_DsRed_global)
-    print(sum_ZsYellow_global)
-    print(sum_ChlA_global)
-    print(sum_ChlB_global)
+    
+    if(verbose==TRUE){
+      print("!!!!!!!!!!!!!!SUMS!!!!!!!!!!!!!!!!!")
+      print(sum_DsRed_local)
+      print(sum_ZsYellow_local)
+      print(sum_ChlA_local)
+      print(sum_ChlB_local)
+      print(sum_DsRed_global)
+      print(sum_ZsYellow_global)
+      print(sum_ChlA_global)
+      print(sum_ChlB_global)
+    }
+
     
     CLS_table$ChlBfalsecolor <- rescale(CLS_table$ChlB,
                                         #from=range(c(denoise_threshold_Chl,max_intensity_Chl)),
@@ -730,13 +882,16 @@ CLS_workflow <- function(spectrum_in_to_CLS = image_full_spectrum_cropped, pass_
                            green= CLS_table$DsRedfalsecolor,
                            blue= rep(0, nrow(CLS_table)),
                            maxColorValue = 255)
-    print(dim(CLS_table))
-    print(head(CLS_table))
+    if(verbose==TRUE){
+      print(dim(CLS_table))
+      print(head(CLS_table))
+    }
+
     return(CLS_table)
   }
   
   # fitting a smooth curve https://stackoverflow.com/questions/3480388/how-to-fit-a-smooth-curve-to-my-data-in-r
-  read_plot_spectra <- function(spectra_path, plot=TRUE){
+  read_plot_spectra <- function(spectra_path, plot=FALSE){
     pub_spectra_in <- fread(spectra_path)
     pub_emission_spectrum <- data.frame(wavelength=pub_spectra_in$`emission wavelength (nm)`,
                                         intensity=pub_spectra_in$`Normalized emission`)
@@ -763,6 +918,7 @@ CLS_workflow <- function(spectrum_in_to_CLS = image_full_spectrum_cropped, pass_
            xlab="Wavelength",
            ylab="Normalized emission")
       
+      # Note here we are plotting the published lines over our data (should be the same as if we used our lines)
       lines(pub_emission_spectrum$wavelength,
             predict(fit,pub_emission_spectrum$wavelength), col='red', lwd=2)
     }
@@ -771,6 +927,14 @@ CLS_workflow <- function(spectrum_in_to_CLS = image_full_spectrum_cropped, pass_
     fitted_spectra_dataframe <- as.data.frame(cbind(wavelengths, predictions))
     colnames(fitted_spectra_dataframe) <- c("Wavelength", "Normalized intensity (fitted)")
     
+    # These two lines may be superfluous
+    # Confirmed they are superfluous in integration_a2 jupyter notebook
+    #fitted_spectra_dataframe[,2] <- as.numeric(as.character(fitted_spectra_dataframe[,2]))
+    #fitted_spectra_dataframe[is.na(fitted_spectra_dataframe)] <- 0
+    
+    
+    if(verbose==TRUE) print(fitted_spectra_dataframe)
+    
     return(fitted_spectra_dataframe)
   }
   ChlB <- read_plot_spectra("/scratch2/NSF_GWAS/macroPhor_Array/Fluorophore_spectra/ChlB.csv")
@@ -778,56 +942,95 @@ CLS_workflow <- function(spectrum_in_to_CLS = image_full_spectrum_cropped, pass_
   DsRed <- read_plot_spectra("/scratch2/NSF_GWAS/macroPhor_Array/Fluorophore_spectra/DsRed_Clontech.csv")
   ZsYellow <- read_plot_spectra("/scratch2/NSF_GWAS/macroPhor_Array/Fluorophore_spectra/ZsYellow_cutoff.csv")
   
-  convert_NA_to_zero_in_spectrum_and_return_vector <- function(spectrum_in){
-    print("KOONICHIWA")
+  convert_NA_to_zero_in_spectrum_and_return_vector <- function(spectrum_in, verbose=FALSE){
     vector <- as.vector(spectrum_in$'Normalized intensity (fitted)')
-    print(vector[1:5])
+    if(verbose==TRUE) print(vector[1:5])
     vector[which(is.na(vector)==TRUE)] <- 0
-    print(vector[1:5])
+    if(verbose==TRUE) print(vector[1:5])
     return(as.numeric(as.character(vector)))
     
   }
+  
   ChlA_vector <- convert_NA_to_zero_in_spectrum_and_return_vector(ChlA)
   ChlB_vector <- convert_NA_to_zero_in_spectrum_and_return_vector(ChlB)
   DsRed_vector <- convert_NA_to_zero_in_spectrum_and_return_vector(DsRed)
   ZsYellow_vector <- convert_NA_to_zero_in_spectrum_and_return_vector(ZsYellow)
-  print(ChlA_vector[1:5])
   
+  if(verbose==TRUE) print(ChlA_vector[1:5])
+  
+  # HERE WE CAN SET THE INTERCEPT AS ZERO OR ONE. SHOULD BE HARDWIRED?
   mm <<- as.matrix(cbind(1, DsRed_vector, ZsYellow_vector, ChlA_vector, ChlB_vector))
   
-  print("Making CLS table")
+  if(verbose==TRUE){
+    print("Making CLS table")
+    print("Dimensions of spectrum_in_to_CLS being used to make CLS table: ")
+    print(dim(spectrum_in_to_CLS))
+  }
+
   CLS_table_server_side <- data.table(cbind(as.numeric(spectrum_in_to_CLS$rows), as.numeric(spectrum_in_to_CLS$cols), matrix(nrow=dim(spectrum_in_to_CLS)[1], ncol=4)))
-  print(CLS_table_server_side[1:10,1:6])
-  print("type of row col")
-  print(typeof(spectrum_in_to_CLS$rows))
   
-  # CLS_table_server_side[,1] <- as.numeric(as.character(CLS_table_server_side[,1]))
-  # CLS_table_server_side[,2] <- as.numeric(as.character(CLS_table_server_side[,2]))
+  if(verbose==TRUE){
+    print(CLS_table_server_side[1:10,1:6])
+    print("type of row col")
+    print(typeof(spectrum_in_to_CLS$rows))
+    print("Dimensions of CLS table after being made:")
+    print(dim(CLS_table_server_side))
+    
+    # CLS_table_server_side[,1] <- as.numeric(as.character(CLS_table_server_side[,1]))
+    # CLS_table_server_side[,2] <- as.numeric(as.character(CLS_table_server_side[,2]))
+    
+    print("Converting columns to numeric")
+  }
+
   CLS_table_server_side[,3] <- as.numeric(as.character(CLS_table_server_side[,3]))
   CLS_table_server_side[,4] <- as.numeric(as.character(CLS_table_server_side[,4]))
   CLS_table_server_side[,5] <- as.numeric(as.character(CLS_table_server_side[,5]))
   CLS_table_server_side[,6] <- as.numeric(as.character(CLS_table_server_side[,6]))
   
+  if(verbose==TRUE){
+    print("Done converting")
+    
+    print("Assigning CLS table to a global object")
+  }
+
   assign("CLS_table", CLS_table_server_side, envir=globalenv())
   
   colnames(CLS_table) <- c("rows", "cols", "DsRed", "ZsYellow", "ChlA", "ChlB")
-  print("About to perform CLS")
-  print("Pixels we will perform CLS over will first be determined.")
-  print(paste0("Threshold for FP: ", pass_FP_threshold_from_input))
-  print(paste0("Treshold for Chl: ", pass_Chl_threshold_from_input))
-  chosen_pixels <<- choose_pixels(full_spectrum=spectrum_in_to_CLS[,3:ncol(spectrum_in_to_CLS)],
+  
+  if(verbose==TRUE){
+    print("About to perform CLS")
+    print("Pixels we will perform CLS over will first be determined.")
+    print(paste0("Threshold for FP: ", pass_FP_threshold_from_input))
+    print(paste0("Treshold for Chl: ", pass_Chl_threshold_from_input))
+  }
+
+  chosen_pixels <<- choose_pixels(full_spectrum=spectrum_in_to_CLS,
                                   CLS_threshold_FP=pass_FP_threshold_from_input,
                                   CLS_threshold_Chl=pass_Chl_threshold_from_input)
-  print(paste0("Number of chosen pixels: ", length(chosen_pixels)))
-  print("First 5: ")
-  print(head(chosen_pixels))
+  
+  if(verbose==TRUE){
+    print("Type of output from choose_pixels for chosen pixels is: ")
+    print(typeof(chosen_pixels))
+    print("...and it has dimensions: ")
+    print(dim(chosen_pixels))
+    print(paste0("Number of chosen pixels: ", length(chosen_pixels)))
+    print("First 5: ")
+    print(head(chosen_pixels))
+  }
+
   perform_CLS(pixels_to_test = chosen_pixels)
-  print("CLS done for whole image. Finish data processing.")
+  
+  if(verbose==TRUE) print("CLS done for whole image. Finish data processing.")
+  
   CLS_table <- finish_processing_CLS_table(CLS_table)
-  print("Head of CLS_table right after it comes out of finish_processing_CLS_table workflow")
-  print(head(CLS_table))
-  print("total dsred is.......")
-  print(sum(CLS_table$DsRed))
-  print("CLS data processing finished.")
+  
+  if(verbose==TRUE){
+    print("Head of CLS_table right after it comes out of finish_processing_CLS_table workflow")
+    print(head(CLS_table))
+    print("total dsred is.......")
+    print(sum(CLS_table$DsRed))
+    print("CLS data processing finished.")
+  }
+  
   return(CLS_table)
 }
