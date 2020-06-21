@@ -1,0 +1,24 @@
+Package: GMOdetectoR
+Type: Package
+Title: What the Package Does (Title Case)
+Version: 0.1.39
+Author: Michael Nagle
+Maintainer: Michael Nagle <michael.nagle@oregonstate.edu>
+Description: More about what it does (maybe more than one line)
+    Use four spaces when indenting paragraphs within the Description.
+Imports: 
+    data.table,
+    hyperSpec,
+    scales,
+    tools,
+    stringr,
+    gridExtra,
+    ggplot2,
+    reshape2,
+    foreach,
+    doParallel,
+    parallel
+License: BSD_3_clause + file LICENSE
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.0.2
