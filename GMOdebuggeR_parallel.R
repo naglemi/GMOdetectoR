@@ -10,12 +10,13 @@ library(foreach)
 library(doParallel)
 tempdir("/scratch2/NSF_GWAS/Rtmp/")
 setwd("/scratch2/NSF_GWAS/GMOdetectoR/")
-source("/scratch2/NSF_GWAS/GMOdetectoR/GMOdetectoRv0.34cool.R")
+#source("/scratch2/NSF_GWAS/GMOdetectoR/GMOdetectoRv0.34cool.R")
 
 closeAllConnections()
 gc()
 
-normalization_and_regression_over_one_plate <- function(files_to_loop, i, chroma_in_backend, job_id, by_explant=TRUE, grid_type=12){
+normalization_and_regression_over_one_plate <- function(files_to_loop, i, chroma_in_backend, job_id, by_explant=TRUE, grid_type=12,
+                                                        intercept){
   gc() # Check if this line helps with memory issues, crashing
   filename <- files_to_loop[i]
   
@@ -33,20 +34,24 @@ normalization_and_regression_over_one_plate <- function(files_to_loop, i, chroma
   
   if(by_explant==TRUE){
     what_to_plot <- decide_what_to_plot(mode = c(2))
-    for(i in 1:grid_type){
-      input$grid_position <- i
+    for(j in 1:grid_type){
+      input$grid_position <- j
       crop_and_plot(mode=what_to_plot,
                     image_to_crop = img_in_backend,
                     input_toggle=(2 %in% input$hys_CLS_PCA),
                     grid_item = input$grid_position,
                     image_type = "CLS",
-                    first_pass_FP_threshold = input$denoise_threshold_FP,
-                    first_pass_Chl_threshold = input$denoise_threshold_Chl,
+                    first_pass_FP_threshold = 0,
+                    first_pass_Chl_threshold = 0,
+                    #first_pass_FP_threshold = input$denoise_threshold_FP,
+                    #first_pass_Chl_threshold = input$denoise_threshold_Chl,
                     name_to_parse = filename,
                     fluorophore_ID_vector = c("DsRed", "ZsYellow", "Chl", "Diffraction"),
                     record_residuals = TRUE,
                     grid_type = 12,
-                    job_id = job_id)
+                    job_id = job_id,
+                    intercept = intercept,
+                    desired_wavelength_range = c(545, 722))
       }
     }else{
     what_to_plot <- decide_what_to_plot(mode = c(1))
@@ -64,11 +69,13 @@ normalization_and_regression_over_one_plate <- function(files_to_loop, i, chroma
                   fluorophore_ID_vector = c("DsRed", "ZsYellow", "Chl", "Diffraction"),
                   record_residuals = TRUE,
                   grid_type=12,
-                  job_id = job_id)
+                  job_id = job_id,
+                  intercept = intercept)
   }
 }
 
-normalization_and_regression_over_all_data_one_timepoint <- function(files_to_loop, maximum_CPU_number, job_id, by_explant){
+normalization_and_regression_over_all_data_one_timepoint <- function(files_to_loop, maximum_CPU_number, job_id, by_explant,
+                                                                     intercept){
   
   #try(dev.off())
   gc()
@@ -90,7 +97,8 @@ normalization_and_regression_over_all_data_one_timepoint <- function(files_to_lo
                                                         i = i,
                                                         chroma_in_backend = chroma_in_backend,
                                                         job_id,
-                                                        by_explant = by_explant)
+                                                        by_explant = by_explant,
+                                                        intercept = intercept)
           }
   stopCluster(cl)
 }
@@ -118,7 +126,7 @@ check_success_high_throughput <- function(files_to_loop, sum_stats_file, grid_ty
     colnames(sum_stats_file_in)[1:2] <- c("file")
     comprehensive_dt <- data.table(file = c(files_to_loop))
     comprehensive_dt_with_results <- merge(sum_stats_file_in,
-                                           comprehensive_dt, by=c("file"),
+                                           unique(comprehensive_dt$file), by=c("file"),
                                            all.x = FALSE,
                                            all.y = TRUE)
   }
@@ -126,23 +134,57 @@ check_success_high_throughput <- function(files_to_loop, sum_stats_file, grid_ty
   return(comprehensive_dt_with_results)
 }
 
+run_parallel <- function(timepoint, maximum_CPU_number, intercept){
+  files_to_loop <- list.files(timepoint,
+                              pattern=".raw",
+                              full.names = TRUE)
+  
+  job_id <- paste0(str_split_fixed(timepoint, "/", 5)[5], "_intercept", intercept)
+  print(paste0("Starting workflow for ", job_id))
+  
+  normalization_and_regression_over_all_data_one_timepoint(files_to_loop = files_to_loop,
+                                                           maximum_CPU_number = 10,
+                                                           job_id = job_id,
+                                                           by_explant = FALSE)
+  
+  output <- check_success_high_throughput(files_to_loop = files_to_loop,
+                                          sum_stats_file = paste0("/scratch2/NSF_GWAS/GMOdetectoR/output/",
+                                                                  Sys.Date(),
+                                                                  "/",
+                                                                  job_id,
+                                                                  "/sum_stats.csv"),
+                                          grid_type = 12,
+                                          by_explant = FALSE)
+  
+  files_failed_first_time <- unique(c(files_to_loop[1], output[is.na(output$V3),]$file))
+  length(files_failed_first_time)
+  # 18
+  
+  if(length(files_failed_first_time)>1){
+    stop("Not all jobs completed.")
+  }
+  print("Complete. On to the next one...")
+}
+
 what_to_plot <- decide_what_to_plot(mode = c(2))
 tempdir("/scratch2/NSF_GWAS/Rtmp/")
 
 input <- list()
 input$hys_CLS_PCA <- 2
-#input$grid_position <- 18
+input$grid_position <- 2
 input$denoise_threshold_FP <- 0
 input$denoise_threshold_Chl <- 0
 
 ## If we are to run data for a single timepoint...
 
-# data_path <- "/scratch2/NSF_GWAS/macroPhor_Array/T16_DEV_genes/EA/wk7/"
-# 
-# files_to_loop <- list.files(data_path,
-#                             pattern=".raw",
-#                             full.names = TRUE)
-# 
+data_path <- "/scratch2/NSF_GWAS/macroPhor_Array/T16_DEV_genes/EA/wk7/"
+
+files_to_loop <- list.files(data_path,
+                            pattern=".raw",
+                            full.names = TRUE)
+i <- 2
+job_id <- "test"
+intercept <- 0
 # job_id <- str_split_fixed(data_path, "/", 5)[5]
 # 
 # Start_time_parallel <- Sys.time()
@@ -182,38 +224,14 @@ all_timepoints <- list.files("/scratch2/NSF_GWAS/macroPhor_Array/T16_DEV_genes/E
 
 for(timepoint in all_timepoints){
   
-  files_to_loop <- list.files(timepoint,
-                              pattern=".raw",
-                              full.names = TRUE)
+run_parallel(timepoint = timepoint,
+             maximum_CPU_number = 10,
+             intercept = 1)
   
-  job_id <- str_split_fixed(timepoint, "/", 5)[5]
-  print(paste0("Starting workflow for ", job_id))
-  
-  normalization_and_regression_over_all_data_one_timepoint(files_to_loop = files_to_loop,
-                                                           maximum_CPU_number = 10,
-                                                           job_id = job_id,
-                                                           by_explant = FALSE)
-  
-  output <- check_success_high_throughput(files_to_loop = files_to_loop,
-                                          sum_stats_file = paste0("/scratch2/NSF_GWAS/GMOdetectoR/output/",
-                                                                  Sys.Date(),
-                                                                  "/",
-                                                                  job_id,
-                                                                  "/sum_stats.csv",
-                                                                  by_explant = FALSE),
-                                          grid_type = 12)
-  
-  files_failed_first_time <- unique(c(files_to_loop[1], output[is.na(output$V3),]$file))
-  length(files_failed_first_time)
-  # 18
-  
-  if(length(files_failed_first_time)>1){
-    stop("Not all jobs completed.")
-  }
-  print("Complete. On to the next one...")
+
 }
 
-Sys.time() # Started at 3:20pm
+Sys.time() # Started at 3:47pm
 
 ## Back to looking at individual timepoints... Now to make some plots.
 ## Parse from filename all the info for the plate, by splitting filename, referencing randomization data sheet

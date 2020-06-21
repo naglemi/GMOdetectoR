@@ -1,23 +1,7 @@
-# Load GMOdetectoR backend, needed for: 1) assign_tray_plate_ID, 2)get_row_col_for_grid_item, ...
-
-library(stringr)
-
-# Need lubridate for getting rid of earlier photos which have problems
-library(lubridate)
-
-source("/scratch2/NSF_GWAS/GMOdetectoR/GMOdetectoRv0.19.R")
-#source("C:/Users/OSU/code/GMOdetectoR/GMOdetectoRv0.19.R")
-
-# Need exifr in order to read exif data from images and keep only the most recent one of each
-#install.packages("exifr")
 library(exifr)
-
-source_directory <- "/scratch2/NSF_GWAS/macroPhor_Array/Randomization_Datasheets"
-source_files <- list.files(source_directory, full.names = TRUE)
-
-randomization_database <- data.table(matrix(ncol = ncol(fread(source_files[1]))))
-colnames(randomization_database) <- colnames(fread(source_files[1]))
-colnames(randomization_database)[1] <- "PlateNumber"
+library(lubridate)
+library(stringr)
+source("/scratch2/NSF_GWAS/GMOdetectoR/GMOdetectoRv0.19.R")
 
 for(file in source_files){
   print(file)
@@ -87,15 +71,15 @@ head(image_db)
 head(image_db_shuffled)
 
 # Subset to desired number of images
-image_db_shuffled_subset <- image_db_shuffled[1:200,]
+image_db_shuffled_subset <- image_db_shuffled[1:2000,]
 
 # Copy these images to a new folder
 getwd()
-dir.create("/scratch2/NSF_GWAS/macroPhor_Array/all_jpgs_as_of_11.6.19/subset/")
-setwd("/scratch2/NSF_GWAS/macroPhor_Array/all_jpgs_as_of_11.6.19/subset")
+dir.create("/scratch2/NSF_GWAS/macroPhor_Array/all_jpgs_as_of_11.6.19/subset_030220/")
+setwd("/scratch2/NSF_GWAS/macroPhor_Array/all_jpgs_as_of_11.6.19/subset_030220/")
 
 for(file in image_db_shuffled_subset$image_files){
   file.copy(file, basename(file))
 }
 
-fwrite(image_db_shuffled_subset, "Subset_images_to_score.csv", sep=",", quote = FALSE)
+fwrite(image_db_shuffled_subset, "Subset_images_to_score_030220.csv", sep=",", quote = FALSE)

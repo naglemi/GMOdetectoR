@@ -159,7 +159,7 @@ server <- function(input, output, session) {
                        first_pass_FP_threshold = input$denoise_threshold_FP,
                        first_pass_Chl_threshold = input$denoise_threshold_Chl,
                        name_to_parse = filename,
-                       fluorophore_ID_vector = c("DsRed", "ZsYellow", "ChlA", "ChlB"))
+                       fluorophore_ID_vector = c("DsRed", "ZsYellow", "Chl", "Diffraction"))
        }, height = 800, width=800)
    
    output$image2 <- renderPlot({
@@ -174,7 +174,7 @@ server <- function(input, output, session) {
                    first_pass_FP_threshold = input$denoise_threshold_FP,
                    first_pass_Chl_threshold = input$denoise_threshold_Chl,
                    name_to_parse = filename,
-                   fluorophore_ID_vector = c("DsRed", "ZsYellow", "ChlA", "ChlB"))
+                   fluorophore_ID_vector = c("DsRed", "ZsYellow", "ChlA", "Diffraction"))
    }, height = 600, width=600)
 
    PCA_workflow <- function(image_in=img_in_backend, input_toggle=FALSE){
