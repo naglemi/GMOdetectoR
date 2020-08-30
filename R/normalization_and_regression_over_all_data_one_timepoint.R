@@ -27,8 +27,10 @@ normalization_and_regression_over_all_data_one_timepoint <- function(files_to_lo
   # Run parallel ------------------------------------------------------------
 
   foreach(i=1:length(files_to_loop),
-          .packages = c("shiny", "RcppEigen", "hyperSpec", "data.table",
-                        "scales", "gridExtra", "tools", "stringr"),
+          .packages = c("shiny", #"RcppEigen",
+                        "hyperSpec", "data.table",
+                        "scales", "gridExtra",
+                        "tools", "stringr"),
           .export = c("normalization_and_regression_over_one_plate"),
           .errorhandling = 'stop') %dopar% {
             #for(i in 1:length(files_to_loop)){
