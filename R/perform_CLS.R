@@ -20,7 +20,8 @@ perform_CLS <- function(pixels_to_test,
                         spectrum_in_to_CLS,
                         CLS_table,
                         Xmatrix,
-                        t_spectrum_in_to_CLS){
+                        t_spectrum_in_to_CLS,
+                        vectorized = FALSE){
 
   #start_time <- Sys.time()
   if(backend=="ByHand"){
@@ -30,6 +31,38 @@ perform_CLS <- function(pixels_to_test,
   }else{
     A <- NA
     Z <- NA
+  }
+
+  if(vectorized == TRUE){
+    BETA <- Z %*% t_spectrum_in_to_CLS
+    RESID <- round(t_spectrum_in_to_CLS - (Xmatrix %*% BETA))
+    P <- ncol(Xmatrix) - intercept # minus one if we have intercept because we don't count the intercept as a parameter
+    N <- nrow(Xmatrix)
+    ptm <- proc.time()
+    profvis({
+
+      use_condaenv("r-reticulate")
+
+      np <- import("numpy", convert=FALSE)
+      tf <- import("tensorflow", convert=FALSE)
+
+      gpu <- import("gnumpy", convert=FALSE)
+
+      (RESIDt <- np$transpose(RESID))
+      #(RESIDtRESID <- np$matmul(RESIDt, RESID))
+
+      (RESIDtRESID <- tf$mul(RESIDt, RESID))
+
+      py_to_r(RESIDtRESID)
+
+      MSE <- diag(RESIDtRESID/(N-P-1))
+
+      #MSE <- diag((t(RESID) %*% RESID)/(N-P-1))
+    })
+
+    print((proc.time()-ptm))
+    Beta.covar.matrix <- as.vector(MSE)*A
+    Beta.se <- sqrt(diag(Beta.covar.matrix))
   }
 
   # Need to get rid of the row and col columns I used for indexing earlier

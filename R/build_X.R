@@ -17,6 +17,7 @@ build_X <- function(fluorophore_ID_vector, intercept, wavelengths, desired_wavel
     #stop("Debug here")
     spectra <- convert_NA_to_zero_in_spectrum_and_return_vector(read_plot_spectra(path,
                                                                                   wavelengths = wavelengths))
+    #browser()
     # assign(paste0(fluorophore_ID_vector[i], "_vector"), spectra)
     #
     #

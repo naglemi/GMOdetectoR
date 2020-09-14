@@ -16,7 +16,7 @@
 #' @examples \dontrun{model_and_record_single_pixel(i, fluorophore_ID_vector = fluorophore_ID_vector,A = A, Z = Z, backend = backend,record_residuals = record_residuals)}
 model_and_record_single_pixel <- function(i, Xmatrix = mm, fluorophore_ID_vector,
                                           A, Z, backend, record_residuals, intercept, CLS_table, spectrum_formatted){
-
+  browser()
   if(backend=="ByHand"){
     Beta <- Z %*% spectrum_formatted
     resid <- spectrum_formatted - (Xmatrix %*% Beta)
